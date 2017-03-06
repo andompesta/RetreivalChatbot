@@ -8,7 +8,7 @@ tf.flags.DEFINE_integer("vocab_size", 91620, "The size of the vocabulary. Only c
 tf.flags.DEFINE_integer("embedding_dim", 100, "Dimensionality of the embeddings")
 tf.flags.DEFINE_integer("rnn_dim", 256, "Dimensionality of the RNN cell")
 tf.flags.DEFINE_integer("max_context_len", 160, "Truncate contexts to this length")
-tf.flags.DEFINE_integer("max_utterance_len", 80, "Truncate utterance to this length")
+tf.flags.DEFINE_integer("max_utterance_len", 160, "Truncate utterance to this length")
 
 # Pre-trained embeddings
 tf.flags.DEFINE_string("glove_path", 'glove.6B.100d.txt', "file name to pre-trained Glove vectors")

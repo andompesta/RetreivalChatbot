@@ -103,14 +103,14 @@ def create_input_fn(mode, input_files, batch_size, num_epochs):
     '''
     def input_fn():
         features = tf.contrib.layers.create_feature_spec_for_parsing(get_feature_columns(mode))
-
+        # TODO: use the sequenceExample input and dynamic_pad flag
         feature_map = tf.contrib.learn.io.read_batch_features(  # read the data form Example protocol files. Only the specified features are readed
             file_pattern=input_files,
             batch_size=batch_size,
             features=features,
             reader=tf.TFRecordReader,
             randomize_input=True,
-            num_epochs=num_epochs,
+            num_epochs=num_epochs,                              # Integer specifying the number of times to read through the dataset.
             queue_capacity=200000 + batch_size * 10,
             name="read_batch_features_{}".format(mode))
 

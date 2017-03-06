@@ -28,13 +28,6 @@ def get_embeddings(hparams):
 
 
 def dual_encoder_model(hparams, mode, context, context_len, utterance, utterance_len, targets):
-    # Logic to do the following:
-    # 1. Configure the model via TensorFlow operations
-    # 2. Define the loss function for training/evaluation
-    # 3. Define the training operation/optimizer
-    # 4. Generate predictions
-    # 5. Return predictions/loss/train_op/eval_metric_ops in ModelFnOps object
-
     # Initialize embedidngs randomly or with pre-trained vectors if available
     embeddings_W = get_embeddings(hparams)
 
@@ -53,11 +46,11 @@ def dual_encoder_model(hparams, mode, context, context_len, utterance, utterance
             state_is_tuple=True)
 
         # Run the utterance and context through the RNN
-        rnn_outputs, rnn_states = tf.nn.dynamic_rnn(cell,
-                                                    tf.concat([context_embedded, utterance_embedded], axis=0),
-                                                    sequence_length=tf.concat([context_len, utterance_len], axis=0),
+        rnn_outputs, rnn_states = tf.nn.dynamic_rnn(cell,                                                               # rnn_output[?, sequence_length, RNN_dim] => output of the rnn at each timestamp(for each word), rnn_state[?, RNN_DIM] => the last state for each example(sentence)
+                                                    tf.concat([context_embedded, utterance_embedded], axis=0),          # encode all the context and then all the utterance of the current batch
+                                                    sequence_length=tf.concat([context_len, utterance_len], axis=0),    # specify the length of each embdding to early stop
                                                     dtype=tf.float32)
-        encoding_context, encoding_utterance = tf.split(rnn_states.h, num_or_size_splits=2, axis=0)
+        encoding_context, encoding_utterance = tf.split(rnn_states.h, num_or_size_splits=2, axis=0)                     # since we have the same amount of context and utterance, split the final output in half will give us the encoding of the contexts and of the utterances
 
     with tf.variable_scope("prediction") as vs:
         M = tf.get_variable("M",
@@ -66,13 +59,14 @@ def dual_encoder_model(hparams, mode, context, context_len, utterance, utterance
 
         # "Predict" a  response: c * M
         generated_response = tf.matmul(encoding_context, M)             # execute a linear classification
+        # expand_dim used to guarantee the correct broadcasting during the computation of the logits
         generated_response = tf.expand_dims(generated_response, 2)      # add a dimention at the end of the shape, generate_response.shape => [batch_size, rnn_dim, 1]
-        encoding_utterance = tf.expand_dims(encoding_utterance, 2)
+        encoding_utterance = tf.expand_dims(encoding_utterance, 2)      # add a dimention at the end of the shape, encoding_utterance.shape => [batch_size, rnn_dim, 1]
 
         # Dot product between generated response and actual response
         # (c * M) * r
         logits = tf.matmul(generated_response, encoding_utterance, transpose_a=True)
-        logits = tf.squeeze(logits, [2])        # remove 3D dimention
+        logits = tf.squeeze(logits, [2])        # remove 3D dimention,  logits.shape => [batch_size, 1]
 
         # Apply sigmoid to convert logits to probabilities
         probs = tf.sigmoid(logits)

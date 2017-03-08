@@ -101,32 +101,50 @@ def create_input_fn(mode, input_files, batch_size, num_epochs):
     :param num_epochs: number of epocs to repead the datasets, if None it never stop
     :return:
     '''
+    def read_and_decode(file_name_queue):
+        '''
+        Decode a single sequence example
+        :param file_name_queue: queue of the files to read
+        :return: tensor containing the contex_feature and sequence_fature of a single example
+        '''
+        reader = tf.TFRecordReader()
+        _, serialized_example = reader.read(file_name_queue)
+        context_parsed, sequence_parsed = tf.parse_single_sequence_example(serialized_example,
+                                                                           context_features={
+                                                                               'context_len': tf.FixedLenFeature([], dtype=tf.int64),
+                                                                               'utterance_len': tf.FixedLenFeature([], dtype=tf.int64),
+                                                                               'label': tf.FixedLenFeature([], dtype=tf.int64),
+                                                                           },
+                                                                           sequence_features={
+                                                                               "context": tf.FixedLenSequenceFeature([], dtype=tf.int64),
+                                                                               "utterance": tf.FixedLenSequenceFeature([], dtype=tf.int64)
+                                                                           })
+        return context_parsed, sequence_parsed
+
     def input_fn():
-        features = tf.contrib.layers.create_feature_spec_for_parsing(get_feature_columns(mode))
-        # TODO: use the sequenceExample input and dynamic_pad flag
-        feature_map = tf.contrib.learn.io.read_batch_features(  # read the data form Example protocol files. Only the specified features are readed
-            file_pattern=input_files,
-            batch_size=batch_size,
-            features=features,
-            reader=tf.TFRecordReader,
-            randomize_input=True,
-            num_epochs=num_epochs,                              # Integer specifying the number of times to read through the dataset.
-            queue_capacity=200000 + batch_size * 10,
-            name="read_batch_features_{}".format(mode))
+        with tf.name_scope('input'):
+            file_name_queue = tf.train.string_input_producer(input_files, num_epochs=num_epochs)
+            context_parsed, sequence_parsed = read_and_decode(file_name_queue)      # decode each example
+            feature_map = dict(context_parsed, **sequence_parsed)                           # construct a feature map dictionary
+
+            feature_map_batch = tf.train.batch(    # BATCH THE DATA
+                tensors=feature_map,
+                batch_size=batch_size,
+                dynamic_pad=True)                                # dimanic size of the batch
+
 
         # This is an ugly hack because of a current bug in tf.learn
         # During evaluation TF tries to restore the epoch variable which isn't defined during training
         # So we define the variable manually here
+        targets = feature_map_batch.pop("label")
+        targets = tf.expand_dims(targets, 1)
         if mode == tf.contrib.learn.ModeKeys.TRAIN:
             tf.get_variable(
                 "read_batch_features_eval/file_name_queue/limit_epochs/epochs",
                 initializer=tf.constant(0, dtype=tf.int64))
+        # elif mode == tf.contrib.learn.ModeKeys.EVAL:
+        #     targets = tf.split(targets, num_or_size_splits=10, axis=0)        # needed for the evaluation of recall@_k
+        #     targets = tf.concat(targets, axis=1)
 
-        if mode == tf.contrib.learn.ModeKeys.TRAIN:
-            target = feature_map.pop("label")
-        else:
-            # In evaluation we have 10 classes (utterances).
-            # The first one (index 0) is always the correct one
-            target = tf.zeros([batch_size, 1], dtype=tf.int64)
-        return feature_map, target
+        return feature_map_batch, targets
     return input_fn

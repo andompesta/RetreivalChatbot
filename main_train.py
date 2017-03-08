@@ -1,5 +1,6 @@
 import time
-
+from tensorflow.contrib.learn import MetricSpec
+import functools
 import tensorflow as tf
 import model
 
@@ -13,14 +14,14 @@ TIMESTAMP = int(time.time())
 tf.flags.DEFINE_string("input_dir", './data', "Directory containing input data files 'train.tfrecords' and 'validation.tfrecords'")
 tf.flags.DEFINE_string("model_dir", './runs_{}'.format(TIMESTAMP), "Directory to store model checkpoints (defaults to ./runs)")
 tf.flags.DEFINE_integer("loglevel", 20, "Tensorflow log level")
-tf.flags.DEFINE_integer("num_epochs", 2000, "Number of training Epochs. Defaults to indefinite.")
-tf.flags.DEFINE_integer("eval_every", 100, "Evaluate after this many train steps")
+tf.flags.DEFINE_integer("num_epochs", None, "Number of training Epochs. Defaults to indefinite.")
+tf.flags.DEFINE_integer("eval_every", 2000, "Evaluate after this many train steps")
 tf.flags.DEFINE_float("memory_fraction", 0., "fraction of gpu memory allocated")
 FLAGS = tf.flags.FLAGS
 
 
-TRAIN_FILE = FLAGS.input_dir + '/train.tfrecords'
-VALIDATION_FILE =  FLAGS.input_dir + '/validation.tfrecords'
+TRAIN_FILE = FLAGS.input_dir + '/train_my.tfrecords'
+VALIDATION_FILE =  FLAGS.input_dir + '/validation_my.tfrecords'
 
 tf.logging.set_verbosity(FLAGS.loglevel)
 

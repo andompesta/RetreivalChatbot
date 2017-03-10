@@ -4,14 +4,10 @@ import functools
 from utils.IO_data import create_row_iter, create_csv_batch_iter
 
 tf.flags.DEFINE_string("input_dir", "../data", "Directory containing input data files 'train.tfrecords' and 'validation.tfrecords'")
-tf.flags.DEFINE_string("model_dir", None, "Directory to store model checkpoints (defaults to ./runs)")
-tf.flags.DEFINE_integer("loglevel", 20, "Tensorflow log level")
-tf.flags.DEFINE_integer("num_epochs", None, "Number of training Epochs. Defaults to indefinite.")
-tf.flags.DEFINE_integer("eval_every", 2000, "Evaluate after this many train steps")
 tf.flags.DEFINE_integer("min_word_frequency", 5, "Minimum frequency of words in the vocabulary")
 tf.flags.DEFINE_integer("max_sentence_len", 160, "Maximum Sentence Length")
 tf.flags.DEFINE_integer('batch_size', 20000, 'size of the inputs batch')
-
+tf.flags.DEFINE_boolean('zero_padding', True, 'use zero parring in the sentence transformation')
 FLAGS = tf.flags.FLAGS
 
 
@@ -92,8 +88,8 @@ def create_example_train(row, writer, vocab):
     Returnsthe a tensorflow.Example Protocol Buffer object.
     """
     context, utterance, label = row
-    context_transformed = transform_sentence(context, vocab, zero_padding=True)        # not using the padding since it is dinamic when we create the batchs
-    utterance_transformed = transform_sentence(utterance, vocab, zero_padding=True)    # not using the padding since it is dinamic when we create the batchs
+    context_transformed = transform_sentence(context, vocab, zero_padding=FLAGS.zero_padding)        # not using the padding since it is dinamic when we create the batchs
+    utterance_transformed = transform_sentence(utterance, vocab, zero_padding=FLAGS.zero_padding)    # not using the padding since it is dinamic when we create the batchs
 
     label = int(float(label))
     example = __create_example(context_transformed, utterance_transformed, label)
@@ -106,8 +102,8 @@ def create_example_test(row, writer, vocab):
     Returnsthe a tensorflow.Example Protocol Buffer object.
     """
     context, utterance = row[:2]
-    context_transformed = transform_sentence(context, vocab, zero_padding=True)        # not using the padding since it is dinamic when we create the batchs
-    utterance_transformed = transform_sentence(utterance, vocab, zero_padding=True)    # not using the padding since it is dinamic when we create the batchs
+    context_transformed = transform_sentence(context, vocab, zero_padding=FLAGS.zero_padding)        # not using the padding since it is dinamic when we create the batchs
+    utterance_transformed = transform_sentence(utterance, vocab, zero_padding=FLAGS.zero_padding)    # not using the padding since it is dinamic when we create the batchs
 
     distractors = row[2:]
 
@@ -122,23 +118,15 @@ def create_example_test(row, writer, vocab):
 
 if __name__ == "__main__":
     print("Creating vocabulary...")
-    # input_batch_iter = create_csv_batch_iter('train.csv', batch_size=FLAGS.batch_size)
-    # vocab = create_vocab(input_batch_iter, min_frequency=FLAGS.min_word_frequency, max_sentence_len=FLAGS.max_sentence_len)
-    # print("Total vocabulary size: {}".format(len(vocab.vocabulary_)))
-    #
-    # # Create vocabulary.txt file
-    # write_vocabulary(vocab, "vocabulary_my.txt", path=FLAGS.input_dir)
-    #
-    # # Save vocab processor
-    # vocab.save(file_name='vocab_processor_my.bin', path=FLAGS.input_dir)
+    input_batch_iter = create_csv_batch_iter('train.csv', batch_size=FLAGS.batch_size)
+    vocab = create_vocab(input_batch_iter, min_frequency=FLAGS.min_word_frequency, max_sentence_len=FLAGS.max_sentence_len)
+    print("Total vocabulary size: {}".format(len(vocab.vocabulary_)))
 
+    # Create vocabulary.txt file
+    write_vocabulary(vocab, "vocabulary_my.txt", path=FLAGS.input_dir)
 
-    vocab = VocabularyProcessor(
-        FLAGS.max_sentence_len,
-        min_frequency=FLAGS.min_word_frequency,
-        tokenizer_fn=tokenizer_fn)
-
-    vocab = vocab.restore('../data/vocab_processor_my.bin')
+    # Save vocab processor
+    vocab.save(file_name='vocab_processor_my.bin', path=FLAGS.input_dir)
 
     # Create validation.tfrecords
     create_tfrecords_file(

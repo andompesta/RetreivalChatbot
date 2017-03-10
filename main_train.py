@@ -27,6 +27,8 @@ tf.logging.set_verbosity(FLAGS.loglevel)
 
 def main():
     hparams = network_params.create_hparams()
+    if hparams.eval_batch_size % 10:
+        raise ArithmeticError('EVAL BATCH have to be a multiple of 10 to maintain the utterance-distractors ratio')
 
     model_fn = model.create_model_fn(           # create the model
         hparams,
@@ -38,13 +40,11 @@ def main():
         config=tf.contrib.learn.RunConfig(gpu_memory_fraction=FLAGS.memory_fraction))   # specify the ammount of memory to use for the GPU
 
     input_fn_train = IO_data.create_input_fn(   # ensure that the model receive the data in the correct format for training
-        mode=tf.contrib.learn.ModeKeys.TRAIN,
         input_files=[TRAIN_FILE],
         batch_size=hparams.batch_size,
         num_epochs=FLAGS.num_epochs)            # Integer specifying the number of times to read through the dataset.
 
     input_fn_eval = IO_data.create_input_fn(    # ensure that the model receive the data in the correct format for evaluation
-        mode=tf.contrib.learn.ModeKeys.EVAL,
         input_files=[VALIDATION_FILE],
         batch_size=hparams.eval_batch_size,
         num_epochs=1)

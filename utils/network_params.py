@@ -39,8 +39,6 @@ HParams = namedtuple(
     ])
 
 def create_hparams():
-    if FLAGS.eval_batch_size % TESTING_EXAMPLE_SIZE:
-        raise ArithmeticError('EVAL BATCH have to be a multiple of 10 to maintain the utterance-distractors ratio')
     return HParams(
         batch_size=FLAGS.batch_size,
         eval_batch_size=FLAGS.eval_batch_size,

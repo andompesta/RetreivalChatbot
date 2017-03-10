@@ -67,35 +67,9 @@ def load_glove_vectors(file_name, vocab, path='./data'):
         tf.logging.info("Found {} out of {} vectors in Glove".format(num_vectors, len(vocab)))
         return [np.array(vectors).reshape(num_vectors, word_dim), dct]
 
-def get_feature_columns(mode):
+def create_input_fn(input_files, batch_size, num_epochs):
     '''
-    read the feature of the input example according to the running mode (label for training, distractor for eval)
-    :param mode: running mode
-    :return:
-    '''
-    feature_columns = []
-
-    feature_columns.append(tf.contrib.layers.real_valued_column(column_name="context", dimension=TEXT_FEATURE_SIZE, dtype=tf.int64))
-    feature_columns.append(tf.contrib.layers.real_valued_column(column_name="utterance", dimension=TEXT_FEATURE_SIZE, dtype=tf.int64))
-    feature_columns.append(tf.contrib.layers.real_valued_column(column_name="context_len", dimension=1, dtype=tf.int64))
-    feature_columns.append(tf.contrib.layers.real_valued_column(column_name="utterance_len", dimension=1, dtype=tf.int64))
-
-    if mode == tf.contrib.learn.ModeKeys.TRAIN:
-        # During training we have a label feature
-        feature_columns.append(tf.contrib.layers.real_valued_column(column_name="label", dimension=1, dtype=tf.int64))
-
-    if mode == tf.contrib.learn.ModeKeys.EVAL:
-        # During evaluation we have distractors
-        for i in range(9):
-            feature_columns.append(tf.contrib.layers.real_valued_column(column_name="distractor_{}".format(i), dimension=TEXT_FEATURE_SIZE, dtype=tf.int64))
-            feature_columns.append(tf.contrib.layers.real_valued_column(column_name="distractor_{}_len".format(i), dimension=1, dtype=tf.int64))
-    return set(feature_columns)
-
-
-def create_input_fn(mode, input_files, batch_size, num_epochs):
-    '''
-    read the input file accodring to the mode which is running the model
-    :param mode: running mode
+    read the input file according to the mode which is running the model
     :param input_files: files to read
     :param batch_size: batch size
     :param num_epochs: number of epocs to repead the datasets, if None it never stop
@@ -125,26 +99,24 @@ def create_input_fn(mode, input_files, batch_size, num_epochs):
         with tf.name_scope('input'):
             file_name_queue = tf.train.string_input_producer(input_files, num_epochs=num_epochs)
             context_parsed, sequence_parsed = read_and_decode(file_name_queue)      # decode each example
-            feature_map = dict(context_parsed, **sequence_parsed)                           # construct a feature map dictionary
+            feature_map = dict(context_parsed, **sequence_parsed)                   # construct a feature map dictionary
 
-            feature_map_batch = tf.train.batch(    # BATCH THE DATA
+            feature_map_batch = tf.train.batch(     # BATCH THE DATA
                 tensors=feature_map,
                 batch_size=batch_size,
-                dynamic_pad=True)                                # dimanic size of the batch
+                dynamic_pad=True)                   # dimanic size of the batch
 
 
-        # This is an ugly hack because of a current bug in tf.learn
-        # During evaluation TF tries to restore the epoch variable which isn't defined during training
-        # So we define the variable manually here
         targets = feature_map_batch.pop("label")
-        targets = tf.expand_dims(targets, 1)
-        if mode == tf.contrib.learn.ModeKeys.TRAIN:
-            tf.get_variable(
-                "read_batch_features_eval/file_name_queue/limit_epochs/epochs",
-                initializer=tf.constant(0, dtype=tf.int64))
-        # elif mode == tf.contrib.learn.ModeKeys.EVAL:
-        #     targets = tf.split(targets, num_or_size_splits=10, axis=0)        # needed for the evaluation of recall@_k
-        #     targets = tf.concat(targets, axis=1)
+        targets = tf.expand_dims(targets, 1)        # ad an extra dim needed for boradcasting
+
+        # # This is an ugly hack because of a current bug in tf.learn
+        # # During evaluation TF tries to restore the epoch variable which isn't defined during training
+        # # So we define the variable manually here
+        # if mode == tf.contrib.learn.ModeKeys.TRAIN:
+        #     tf.get_variable(
+        #         "read_batch_features_eval/file_name_queue/limit_epochs/epochs",
+        #         initializer=tf.constant(0, dtype=tf.int64))
 
         return feature_map_batch, targets
     return input_fn

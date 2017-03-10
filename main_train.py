@@ -14,8 +14,8 @@ TIMESTAMP = int(time.time())
 tf.flags.DEFINE_string("input_dir", './data', "Directory containing input data files 'train.tfrecords' and 'validation.tfrecords'")
 tf.flags.DEFINE_string("model_dir", './runs_{}'.format(TIMESTAMP), "Directory to store model checkpoints (defaults to ./runs)")
 tf.flags.DEFINE_integer("loglevel", 20, "Tensorflow log level")
-tf.flags.DEFINE_integer("num_epochs", None, "Number of training Epochs. Defaults to indefinite.")
-tf.flags.DEFINE_integer("eval_every", 2000, "Evaluate after this many train steps")
+tf.flags.DEFINE_integer("num_epochs", 30000, "Number of training Epochs. Defaults to indefinite.")
+tf.flags.DEFINE_integer("eval_every", 200, "Evaluate after this many train steps")
 tf.flags.DEFINE_float("memory_fraction", 0., "fraction of gpu memory allocated")
 FLAGS = tf.flags.FLAGS
 
@@ -37,7 +37,8 @@ def main():
     estimator = tf.contrib.learn.Estimator(     # creation of the estimator for our model_fn functions
         model_fn=model_fn,                      # model function
         model_dir=FLAGS.model_dir,              # directory to save the model paramters, graphs, etc.
-        config=tf.contrib.learn.RunConfig(gpu_memory_fraction=FLAGS.memory_fraction))   # specify the ammount of memory to use for the GPU
+        config=tf.contrib.learn.RunConfig(gpu_memory_fraction=FLAGS.memory_fraction,
+                                          save_summary_steps=50))   # specify the ammount of memory to use for the GPU
 
     input_fn_train = IO_data.create_input_fn(   # ensure that the model receive the data in the correct format for training
         input_files=[TRAIN_FILE],

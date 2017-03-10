@@ -6,30 +6,12 @@ import utils.IO_data as IO_data
 FLAGS = tf.flags.FLAGS
 
 
-def get_embeddings(hparams):
-    '''
-    generate initial word embeddings according to the hparams flags
-    :param hparams: flags
-    :return: get or create the varaible word_embedding
-    '''
-    if hparams.glove_path and hparams.vocab_path:           # using Glove embedding
-        tf.logging.info("Loading Glove embeddings...")
-        vocab_array, vocab_dict = IO_data.load_vocab(hparams.vocab_path)
-        glove_embedding, glove_dict = IO_data.load_glove_vectors(hparams.glove_path, vocab=set(vocab_array))
-        initializer = helpers.build_initial_embedding_matrix(vocab_dict, glove_dict, glove_embedding, hparams.embedding_dim)
-        return tf.get_variable("word_embeddings",
-                               initializer=initializer)
-    else:                                                   # using random init
-        tf.logging.info("No glove/vocab path specificed, starting with random embeddings.")
-        initializer = tf.random_uniform_initializer(-0.25, 0.25)
-        return tf.get_variable("word_embeddings",
-                               shape=[hparams.vocab_size, hparams.embedding_dim],
-                               initializer=initializer)
-
 
 def dual_encoder_model(hparams, mode, context, context_len, utterance, utterance_len, targets):
     # Initialize embedidngs randomly or with pre-trained vectors if available
-    embeddings_W = get_embeddings(hparams)
+    embeddings_W = helpers.get_embeddings(hparams)
+    tf.summary.histogram('embeddings', embeddings_W)
+
 
     # Embed the context and the utterance, convert the word_idx to the word_embedding
     context_embedded = tf.nn.embedding_lookup(embeddings_W, context, name="embed_context")

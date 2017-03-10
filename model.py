@@ -1,10 +1,7 @@
 import tensorflow as tf
-import sys
-
-def get_id_feature(features, key, len_key):
-    ids = features[key]
-    ids_len = features[len_key]
-    return ids, ids_len
+from models.helpers import get_id_feature
+from utils.eval_metrics import create_evaluation_metrics
+from tensorflow.contrib.learn.python.learn.estimators import model_fn as model_fn_lib
 
 def create_train_op(loss, hparams):
     '''
@@ -20,6 +17,7 @@ def create_train_op(loss, hparams):
         clip_gradients=10.0,                                # clip gradient to a max value
         optimizer=hparams.optimizer)                        # optimizer used
     return train_op
+
 
 
 def create_model_fn(hparams, model_impl):
@@ -43,6 +41,7 @@ def create_model_fn(hparams, model_impl):
                 utterance_len,
                 targets)
             train_op = create_train_op(loss, hparams)
+
             return probs, loss, train_op
 
         if mode == tf.contrib.learn.ModeKeys.INFER:
@@ -65,6 +64,8 @@ def create_model_fn(hparams, model_impl):
                 utterance,
                 utterance_len,
                 targets)
+
+
 
             split_probs = tf.split(probs, num_or_size_splits=10, axis=0)    # split the probabilities between the first positive utterance and the following 9 negative distractors
             shaped_probs = tf.concat(split_probs, axis=1)                   # matrix with shape(?, 10) for each example we have the probability of each response
